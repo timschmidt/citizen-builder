@@ -1,3 +1,10 @@
+//! Widget metadata and defaults used by the palette, inspector, and generator.
+//!
+//! The builder stores each dropped control as a `Widget` with a stable
+//! `WidgetId`, a `WidgetKind`, layout metadata, and serializable
+//! `WidgetProps`. Only palette categories are public for now; the concrete
+//! project model remains crate-internal while the generator is still evolving.
+
 use egui::{Pos2, Vec2, pos2};
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -32,20 +39,25 @@ pub(crate) enum DockArea {
     Center,
 }
 
-/// Widget categories for palette organization (Mobius-ECS inspired)
+/// High-level palette groups used to organize available widget kinds.
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum WidgetCategory {
+    /// Common text, click, selection, and separator controls.
     Basic,
+    /// Controls that accept text, numeric, date, color, or selection input.
     Input,
+    /// Passive or feedback-oriented controls.
     Display,
+    /// Layout, grouping, and window-like controls.
     Containers,
+    /// Specialized controls with more complex behavior or generated code.
     Advanced,
 }
 
 #[allow(dead_code)]
 impl WidgetCategory {
-    /// Returns all categories in display order
+    /// Returns all categories in palette display order.
     pub const fn all() -> &'static [WidgetCategory] {
         &[
             WidgetCategory::Basic,
@@ -56,7 +68,7 @@ impl WidgetCategory {
         ]
     }
 
-    /// Returns the display name for this category
+    /// Returns the human-readable label for this category.
     pub const fn display_name(&self) -> &'static str {
         match self {
             WidgetCategory::Basic => "Basic",
@@ -67,7 +79,7 @@ impl WidgetCategory {
         }
     }
 
-    /// Returns whether this category should be open by default in the palette
+    /// Returns whether this category should be expanded by default.
     pub const fn default_open(&self) -> bool {
         !matches!(self, WidgetCategory::Advanced)
     }
@@ -677,6 +689,30 @@ mod tests {
         assert!(categories.contains(&WidgetCategory::Display));
         assert!(categories.contains(&WidgetCategory::Containers));
         assert!(categories.contains(&WidgetCategory::Advanced));
+    }
+
+    #[test]
+    fn test_widget_category_display_order_and_labels() {
+        let labels: Vec<_> = WidgetCategory::all()
+            .iter()
+            .map(WidgetCategory::display_name)
+            .collect();
+
+        assert_eq!(
+            labels,
+            vec!["Basic", "Input", "Display", "Containers", "Advanced"]
+        );
+    }
+
+    #[test]
+    fn test_widget_category_default_open_policy() {
+        for category in WidgetCategory::all() {
+            assert_eq!(
+                category.default_open(),
+                !matches!(category, WidgetCategory::Advanced),
+                "{category:?} default-open policy changed"
+            );
+        }
     }
 
     #[test]

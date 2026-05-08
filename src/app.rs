@@ -1,3 +1,9 @@
+//! Application shell and code-generation configuration.
+//!
+//! Most builder state is intentionally kept behind the desktop application UI.
+//! The public pieces in this module describe generated-code output modes and
+//! the [`eframe::App`] implementation used by the binary.
+
 use crate::{
     highlight::Highlighter,
     project::Project,
@@ -9,19 +15,20 @@ use egui_extras::DatePickerButton;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-/// Code generation output format
+/// Output shape used when generating Rust source from the current project.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum CodeGenFormat {
-    /// Single file with all code
+    /// Generate one complete `main.rs`-style file.
     #[default]
     SingleFile,
-    /// Separate files: main.rs, state.rs, ui.rs
+    /// Generate conceptual `main.rs`, `state.rs`, and `ui.rs` sections.
     SeparateFiles,
-    /// Just the UI function (for embedding)
+    /// Generate only the state and UI function for embedding in an app.
     UiOnly,
 }
 
 impl CodeGenFormat {
+    /// Returns the label shown in the builder settings UI.
     pub const fn display_name(&self) -> &'static str {
         match self {
             CodeGenFormat::SingleFile => "Single File",
@@ -31,7 +38,32 @@ impl CodeGenFormat {
     }
 }
 
-pub(crate) struct RadBuilderApp {
+#[cfg(test)]
+mod tests {
+    use super::CodeGenFormat;
+
+    #[test]
+    fn test_codegen_format_display_names() {
+        assert_eq!(CodeGenFormat::SingleFile.display_name(), "Single File");
+        assert_eq!(
+            CodeGenFormat::SeparateFiles.display_name(),
+            "Separate Files"
+        );
+        assert_eq!(CodeGenFormat::UiOnly.display_name(), "UI Function Only");
+    }
+
+    #[test]
+    fn test_codegen_format_default_is_single_file() {
+        assert_eq!(CodeGenFormat::default(), CodeGenFormat::SingleFile);
+    }
+}
+
+/// Interactive `eframe` application that owns the builder workspace.
+///
+/// The app stores the active project, selection state, preview settings, and
+/// generated-code options. Construct it with [`Default`] when launching the
+/// desktop builder.
+pub struct RadBuilderApp {
     palette_open: bool,
     project: Project,
     /// Currently selected widgets (supports multi-select)

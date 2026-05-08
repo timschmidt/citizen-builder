@@ -1,21 +1,15 @@
 //! A lightweight RAD GUI builder for `egui` written in Rust.
 
-mod app;
-mod highlight;
-mod project;
-mod widget;
-
-use crate::app::RadBuilderApp;
-
 use eframe::egui;
+use egui_rad_builder::app::RadBuilderApp;
 
 fn initial_inner_size() -> egui::Vec2 {
     // Mirror your defaults
-    let project = project::Project::default();
+    let canvas_size = egui_rad_builder::default_canvas_size();
 
     // Base: canvas
-    let mut w = project.canvas_size.x;
-    let mut h = project.canvas_size.y;
+    let mut w = canvas_size.x;
+    let mut h = canvas_size.y;
 
     // Right inspector (default width = 260)
     w += 260.0;

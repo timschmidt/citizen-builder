@@ -20,6 +20,10 @@ impl Default for Highlighter {
 }
 
 impl Highlighter {
+    /// Creates a highlighter with syntect's default syntax and theme sets.
+    ///
+    /// The current theme is `base16-ocean.dark`, falling back to the first
+    /// available syntect theme if that theme is unavailable.
     pub fn new() -> Self {
         Self {
             syntax_set: SyntaxSet::load_defaults_newlines(),
@@ -28,7 +32,11 @@ impl Highlighter {
         }
     }
 
-    /// Highlight Rust code and return a list of (text, color) spans.
+    /// Highlights Rust source and returns `(text, color)` spans.
+    ///
+    /// The returned text fragments preserve the original source text,
+    /// including line endings, so callers can concatenate the span text to
+    /// recover the input.
     pub fn highlight_rust(&self, code: &str) -> Vec<(String, Color32)> {
         let syntax = self
             .syntax_set
@@ -68,7 +76,7 @@ impl Highlighter {
         result
     }
 
-    /// Render highlighted code as a LayoutJob for egui.
+    /// Renders highlighted Rust source as an [`egui::text::LayoutJob`].
     pub fn layout_job(&self, code: &str) -> egui::text::LayoutJob {
         let mut job = egui::text::LayoutJob::default();
 
@@ -93,7 +101,7 @@ fn style_to_color32(style: Style) -> Color32 {
     Color32::from_rgb(style.foreground.r, style.foreground.g, style.foreground.b)
 }
 
-/// Simple code viewer with syntax highlighting (read-only).
+/// Shows a read-only, scrollable code viewer with Rust syntax highlighting.
 #[allow(dead_code)]
 pub fn code_viewer(ui: &mut egui::Ui, highlighter: &Highlighter, code: &str) {
     let job = highlighter.layout_job(code);
@@ -108,8 +116,11 @@ pub fn code_viewer(ui: &mut egui::Ui, highlighter: &Highlighter, code: &str) {
         });
 }
 
-/// Code editor with syntax highlighting (editable).
-/// Returns true if the code was modified.
+/// Shows an editable code editor styled for Rust source.
+///
+/// Returns `true` when the text was modified. This uses egui's standard code
+/// editor styling rather than live syntax highlighting because highlighting
+/// every edit can be expensive for large generated files.
 #[allow(dead_code)]
 pub fn code_editor_highlighted(
     ui: &mut egui::Ui,
@@ -153,14 +164,19 @@ mod tests {
     #[test]
     fn test_highlight_rust_basic() {
         let highlighter = Highlighter::new();
-        let spans = highlighter.highlight_rust("fn main() {\n    println!(\"Hello\");\n}\n");
+        let code = "fn main() {\n    println!(\"Hello\");\n}\n";
+        let spans = highlighter.highlight_rust(code);
         assert!(!spans.is_empty());
+        let reconstructed: String = spans.iter().map(|(text, _)| text.as_str()).collect();
+        assert_eq!(reconstructed, code);
     }
 
     #[test]
     fn test_layout_job() {
         let highlighter = Highlighter::new();
-        let job = highlighter.layout_job("let x = 42;");
+        let code = "let x = 42;";
+        let job = highlighter.layout_job(code);
         assert!(!job.text.is_empty());
+        assert_eq!(job.text, code);
     }
 }
