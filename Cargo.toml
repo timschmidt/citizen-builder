@@ -1,6 +1,6 @@
 [package]
 name = "citizen-builder"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
 description = "Visual builder for designing egui_mobius Citizen panels"
 authors = ["Timothy Schmidt <timschmidt@gmail.com>"]

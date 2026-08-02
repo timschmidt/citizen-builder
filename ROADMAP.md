@@ -1,7 +1,9 @@
 # citizen-builder roadmap
 
-- Status: first Level 1 vertical slice implemented
-- Builder version: 0.3.0
+- Status: milestones 1–4 implemented
+- Builder version: 0.4.0
+- Project schema: 4 (current schema only)
+- Generator contract: 4
 - Framework baseline: egui_mobius 0.5, egui 0.35, egui_dock 0.20
 - Pinned framework revision: `cc286df73b6cb3a015b3d0c5159aeaf3f41510cc`
 
@@ -9,134 +11,142 @@
 
 - A project describes exactly one reusable Citizen.
 - Its primary output is a standalone Citizen library crate.
-- Every output also includes a native/WASM preview host and explicit host
+- Every output includes a native/WASM preview host and explicit host
   integration guidance.
-- Level 1 means typed `Dynamic<T>` state and Dispatcher lifecycle integration.
-- Level 2 adds discrete application messages; Level 3 adds signals, slots, and
-  asynchronous backends.
+- Level 1 is typed `Dynamic<T>` state and Dispatcher lifecycle integration.
+- Level 2 adds domain-grouped intent/outcome messages and host routing.
+- Level 3 adds cancellable signal/slot and asynchronous backends.
+- Ecosystem features are inferred from semantic nodes; target restrictions are
+  expressed in the generated manifest and code.
+- Multi-Citizen composition belongs to the compile-time host. It never changes
+  the one-project/one-library-Citizen contract.
 - Git dependencies are pinned to an exact revision. A project may instead use
   an explicit local egui_mobius workspace path.
-- Only the current versioned Citizen schema is supported. There is no legacy
-  import or compatibility layer.
-- The builder must dogfood the same Citizen, Dispatcher, reactive-state, dock,
-  native, and WASM architecture it generates.
+- `citizen.json` is the only editable source format. Only the current versioned
+  schema is supported; arbitrary Rust round-tripping and legacy editor formats
+  are intentionally unsupported.
+- The builder dogfoods Citizen, Dispatcher, reactive state, dock, native, and
+  WASM architecture.
 
-## Target development loop
+## Development loop
 
 ```text
-Citizen metadata + typed state + semantic layout
-    -> structural and binding validation
-    -> live docked preview
+template or current-schema JSON
+    -> Citizen metadata + typed state + messages + semantic layout
+    -> structural, binding, interaction, asset, and composition validation
+    -> live themed Citizen and host-dock preview
     -> deterministic standalone crate
-    -> native and WASM compile gates
-    -> host integration
+    -> native and WASM compile/test gates
+    -> single- or multi-Citizen host integration
 ```
 
-Source generation is the target. Runtime dynamic plug-ins are not: Citizens are
-ordinary compile-time Rust dependencies, avoiding an unstable cross-crate ABI.
+Citizens remain ordinary compile-time Rust dependencies. Runtime dynamic
+plug-ins are not a target because that would require an unstable cross-crate
+Rust ABI.
 
-## Implemented vertical slice
+## Milestone 1 — hardened Level 1 editor (complete)
 
-### Versioned project model
+Implemented:
 
-- Schema version 1 with strict unknown-field rejection.
-- One Citizen identity and one child-owning semantic layout tree.
-- Layout nodes for column, row, grid, group, and vertical scroll.
-- Level 1 widget nodes for static content and `bool`, `String`, or `f32`
-  bindings.
-- Stable internal node IDs and semantic names for deterministic output.
-- Validation for package/type/field names, duplicate identities, malformed
-  trees, binding type mismatches, numeric ranges, and framework sources.
-- State rename and deletion operations propagate safely through bindings.
+- Strict versioned schema, generator/backend metadata, and unknown-field
+  rejection.
+- One Citizen identity and one semantic layout tree with stable IDs and names.
+- Typed bool/text/number state, preview-only fixtures, binding validation, and
+  rename/delete propagation.
+- Tree drag/reparent/reorder, indent/outdent, keyboard navigation, undo/redo,
+  and accessible palette insertion.
+- Dogfooded Outline, Canvas, Inspector, and Generated Files Citizens in an
+  `egui_dock` shell.
+- Native/WASM preview generation, safe new-directory export, exact Git or local
+  framework sources, deterministic file snapshots, and representative-node
+  goldens.
 
-### First-class editor shell
+Acceptance record:
 
-- Outline Citizen for hierarchy navigation and palette insertion.
-- Canvas Citizen for live reactive preview and diagnostics.
-- Inspector Citizen for metadata, dependency source, state, node properties,
-  and bindings.
-- Generated Files Citizen for deterministic file inspection, clipboard export,
-  and safe new-directory export.
-- All four panels are registered with `egui_citizen::Dispatcher`, share
-  `Dynamic<CitizenProject>` state, and render in `egui_dock`.
+- Nested Settings designs survive current-schema save/load round trips.
+- Invalid identities, trees, sources, and bindings block generation with
+  actionable diagnostics.
+- Default and representative generated crates are syntax- and rustfmt-clean and
+  compile on native and WASM targets.
 
-### Standalone crate generator
+## Milestone 2 — application messages (complete)
 
-- Library implementing `egui_citizen::Citizen` with a typed `Dynamic<T>` state
-  contract.
-- Complete reference host with registration, activation, dock rendering, and
-  Dispatcher draining.
-- Native `eframe` and WASM `WebRunner` entry points behind one preview feature.
-- Exact Git revision or explicit local-path dependencies.
-- `citizen.json`, Cargo manifest, README, Trunk files, and focused host wiring
-  instructions.
-- Rust syntax parsing and deterministic formatting before display or export.
-- Refusal to export over an existing directory.
+Implemented:
 
-## Milestone 1 — harden the Level 1 MVP
+- Click, change, and submit interaction editing.
+- Separate domain-grouped intent and outcome definitions.
+- Validation preventing intents from mutating reactive state and enforcing
+  typed UI-thread outcome updates.
+- Generated `AppMessage` enums, Citizen outboxes, synchronous reference
+  backend, host drain/routing, and outcome application.
+- Visible preview message path with built-in logging and optional `egui_lens`.
 
-This is the immediate release target.
+Acceptance record:
 
-- Add tree drag/reparent/reorder interactions while retaining palette insertion
-  as the accessible fallback.
-- Add undo/redo as document-level commands.
-- Add focused golden snapshots for every emitted file and representative node
-  combination.
-- Improve keyboard navigation and selection feedback.
-- Add editable preview fixtures without mixing fixture values into generated
-  defaults.
-- Add explicit generator/backend version metadata to the document.
-- Exercise save, load, edit, and export through GUI integration tests where
-  practical.
+- Generated tests request work, produce the paired outcome, and verify the
+  resulting `Dynamic<T>` state change.
 
-Exit criteria:
+## Milestone 3 — cancellable async behavior (complete)
 
-- A Settings Citizen with nested layouts and all three state types survives a
-  save/load/edit round trip without structural loss.
-- The exported crate is formatter-clean and compiles as a library plus native
-  and WASM preview.
-- Invalid identities, trees, sources, and bindings block export with actionable
-  diagnostics.
-- The builder itself passes native and WASM quality gates.
+Implemented:
 
-## Milestone 2 — Level 2 messages
+- Opt-in intent/outcome async mappings with reference delays.
+- Native `egui_mobius` `Signal`/`Slot` plus `AsyncDispatcher` work queues.
+- Abortable WASM local futures with target-gated dependencies.
+- Cooperative native cancellation, browser abort handles, generation-based
+  stale-result rejection, and lifecycle cancellation on Citizen deactivation.
+- UI-thread-only result draining and state mutation.
 
-- Add an interaction editor for click, change, and submit events.
-- Model domain-grouped intent and outcome messages separately from continuous
-  reactive state.
-- Generate `AppMessage` enums, Citizen outboxes, host drain/route scaffolding,
-  and a synchronous backend reference.
-- Add validation that prevents event bindings from silently becoming mutable
-  shared state.
-- Offer `egui_lens` logging in the preview host.
+Acceptance record:
 
-Exit criteria:
+- Generated native tests cover both completion and cancellation.
+- Async all-feature generated crates compile for native and
+  `wasm32-unknown-unknown`.
 
-- A generated Citizen can request work, receive an outcome, update reactive
-  state, and expose the complete message path in its reference host.
+## Milestone 4 — ecosystem acceleration (complete)
 
-## Milestone 3 — Level 3 async behavior
+Implemented:
 
-- Add opt-in signal/slot and `AsyncDispatcher` mappings.
-- Generate cancellable native background work with UI-thread result draining.
-- Define WASM-compatible async alternatives and correct target feature gates.
-- Add lifecycle-aware cancellation on Citizen deactivation.
+- Generation-valid Settings, Logger, Editor, Plot, File Browser, and Backend
+  Control templates.
+- Curated semantic wrappers for `egui_lens`, `egui_quill`, `egui_plot`, and
+  `egui_mobius_widgets`.
+- Inferred component and async Cargo features. The widgets wrapper is native
+  target-gated because its current dependency graph includes Tokio networking;
+  WASM receives a functional standard-egui interaction fallback.
+- Dark/light themes, accent and panel colors, item spacing, UTF-8 text/SVG
+  assets, generated `include_str!` constants, and asset validation.
+- Richer constraints for depth, layout child counts, scroll semantics, grids,
+  editor language, assets, themes, and dock metadata.
+- Visual external-Citizen dock authoring with concrete crate/type/ID metadata,
+  tabs and directional splits, generated preview placeholders, and complete
+  host fields/registration/render/activation/dock scaffolding.
+- Current-schema JSON open/save/import as the supported source-ingestion path.
 
-Exit criteria:
+Acceptance record:
 
-- A generated Citizen starts, observes, and cancels background work without
-  accessing egui state away from the UI thread on either advertised target.
+- All six templates validate, round-trip, generate deterministic crates, and
+  emit rustfmt-clean Rust.
+- Every template passes strict native all-feature compilation.
+- A kitchen-sink crate combining every curated component, assets, async work,
+  and host composition passes native clippy/tests and all-feature WASM check.
+- The generated library remains a single reusable Citizen regardless of host
+  composition settings.
 
-## Milestone 4 — ecosystem acceleration
+## Continuing priorities
 
-- Templates for settings, logger, editor, plot, file browser, and backend
-  control Citizens.
-- Curated wrappers for stable egui_mobius ecosystem components.
-- Assets, themes, inferred features, and richer semantic layout constraints.
-- Multi-Citizen host composition and visual dock layout authoring, layered on
-  the same single-Citizen generator contract.
-- Optional source ingestion only after generated output is stable; arbitrary
-  Rust round-tripping is not required.
+The planned product contract is complete. Future work should remain compatible
+with it and be driven by real Citizen authoring:
+
+- Add GUI automation where it gives more confidence than model/generator tests.
+- Track stable egui_mobius component APIs and remove target fallbacks when their
+  upstream dependency graphs support WASM directly.
+- Add optional browser archive download without weakening non-overwriting
+  native export.
+- Grow semantic nodes and templates only when they preserve deterministic,
+  readable, host-portable output.
+- Consider migrations only between citizen-builder schemas when a concrete
+  compatibility need appears; do not import unrelated RAD project formats.
 
 ## Quality gates
 
@@ -144,34 +154,35 @@ Every change retains:
 
 ```shell
 cargo fmt --all -- --check
-cargo check --all-targets
-cargo clippy --all-targets -- -D warnings
-cargo test
-cargo build --release
-cargo check --target wasm32-unknown-unknown
+cargo check --all-targets --all-features
+cargo clippy --all-targets --all-features -- -D warnings
+cargo test --all-features
+cargo build --release --all-features
+cargo check --target wasm32-unknown-unknown --all-features
 ```
 
-Generator changes additionally materialize a fixture and verify:
+Generator changes additionally materialize default, async, template, and
+kitchen-sink fixtures and verify:
 
-- deterministic file sets;
+- deterministic file sets and focused golden snapshots;
 - valid, formatter-clean Rust;
-- native library and preview compilation;
-- WASM preview compilation;
-- exact dependency-source emission; and
-- rejection of invalid projects before any filesystem write.
+- strict native library and preview compilation;
+- generated synchronous and asynchronous tests;
+- all-feature WASM preview compilation;
+- exact dependency-source and target-gate emission; and
+- rejection of invalid projects before filesystem writes.
 
 ## Risks and controls
 
 - **Framework API churn:** isolate framework-specific emission, pin exact
-  revisions, and update against compiling fixtures.
-- **Workspace-only Citizen crates:** make Git versus local workspace source an
-  explicit saved setting; never silently track a branch.
-- **Immediate-mode layout mismatch:** keep the semantic layout tree authoritative
-  and make any future absolute canvas an explicit node rather than the storage
-  model.
-- **Unmaintainable generated code:** preserve stable semantic names, small
-  templates, syntax validation, formatting, and compile tests.
-- **Scope expansion:** finish one Level 1 Citizen end to end before actions,
-  async behavior, source ingestion, or multi-Citizen composition.
-- **Compatibility drag:** reject unsupported schemas and formats clearly instead
-  of carrying an unrelated editor model into the Citizen architecture.
+  revisions, and update only against compiling fixtures.
+- **Workspace-only Citizen crates:** keep Git versus local workspace source an
+  explicit saved setting; never silently follow a branch.
+- **Immediate-mode layout mismatch:** keep the semantic tree authoritative; do
+  not store transient pixels as the design model.
+- **Unmaintainable generated code:** preserve semantic names, small modules,
+  syntax validation, rustfmt compatibility, goldens, and compile tests.
+- **Host coupling:** represent neighboring Citizens as host metadata and
+  scaffolding; never link them into the exported one-Citizen library.
+- **Compatibility drag:** reject unsupported schemas and formats clearly rather
+  than carrying an unrelated editor model into the Citizen architecture.

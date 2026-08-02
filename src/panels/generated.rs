@@ -95,7 +95,7 @@ impl GeneratedPanel {
             }
 
             #[cfg(target_arch = "wasm32")]
-            ui.weak("Copy files individually; browser archive export follows after the MVP.");
+            ui.weak("Copy generated files individually from the browser preview.");
         });
         ui.separator();
 

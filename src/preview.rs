@@ -6,7 +6,7 @@ use egui::{Color32, CornerRadius, Stroke};
 
 use crate::model::{CitizenProject, DesignNode, NodeId, NodeKind, StateValue};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 enum PreviewValue {
     Bool(bool),
     Text(String),
@@ -17,6 +17,7 @@ enum PreviewValue {
 #[derive(Default)]
 pub(crate) struct PreviewState {
     values: HashMap<String, PreviewValue>,
+    fixture_values: HashMap<String, StateValue>,
 }
 
 impl PreviewState {
@@ -24,22 +25,38 @@ impl PreviewState {
     pub(crate) fn sync(&mut self, project: &CitizenProject) {
         self.values
             .retain(|name, _| project.state_fields.iter().any(|field| field.name == *name));
+        self.fixture_values
+            .retain(|name, _| project.state_fields.iter().any(|field| field.name == *name));
         for field in &project.state_fields {
-            let matches = matches!(
-                (self.values.get(&field.name), &field.value),
+            let fixture = project
+                .preview
+                .values
+                .get(&field.name)
+                .unwrap_or(&field.value);
+            let type_matches = matches!(
+                (self.values.get(&field.name), fixture),
                 (Some(PreviewValue::Bool(_)), StateValue::Bool(_))
                     | (Some(PreviewValue::Text(_)), StateValue::Text(_))
                     | (Some(PreviewValue::Number(_)), StateValue::Number(_))
             );
-            if !matches {
-                let value = match &field.value {
+            let fixture_changed = self.fixture_values.get(&field.name) != Some(fixture);
+            if !type_matches || fixture_changed {
+                let value = match fixture {
                     StateValue::Bool(value) => PreviewValue::Bool(*value),
                     StateValue::Text(value) => PreviewValue::Text(value.clone()),
                     StateValue::Number(value) => PreviewValue::Number(*value),
                 };
                 self.values.insert(field.name.clone(), value);
             }
+            self.fixture_values
+                .insert(field.name.clone(), fixture.clone());
         }
+    }
+
+    /// Reset interactive values to the saved preview fixture.
+    pub(crate) fn reset(&mut self) {
+        self.values.clear();
+        self.fixture_values.clear();
     }
 
     /// Render the complete semantic tree and outline the selected node.
@@ -107,6 +124,51 @@ impl PreviewState {
                 }
                 NodeKind::Button { text } => {
                     let _ = ui.button(text);
+                }
+                NodeKind::StyledButton { text } => {
+                    let _ = ui.add(
+                        egui::Button::new(text)
+                            .fill(Color32::from_rgb(70, 105, 145))
+                            .corner_radius(6.0),
+                    );
+                }
+                NodeKind::ReactiveLogger => {
+                    ui.group(|ui| {
+                        ui.strong("egui_lens event log");
+                        ui.monospace("[intent] preview::ActionRequested");
+                        ui.monospace("[outcome] preview::ActionCompleted");
+                    });
+                }
+                NodeKind::ReactiveEditor { content, language } => {
+                    ui.group(|ui| {
+                        ui.horizontal(|ui| {
+                            ui.strong("egui_quill editor");
+                            ui.monospace(language);
+                        });
+                        let mut visible = content.clone();
+                        ui.add(
+                            egui::TextEdit::multiline(&mut visible)
+                                .code_editor()
+                                .interactive(false)
+                                .desired_rows(8)
+                                .desired_width(f32::INFINITY),
+                        );
+                    });
+                }
+                NodeKind::LinePlot { binding } => {
+                    if let Some(PreviewValue::Number(value)) =
+                        binding.as_ref().and_then(|name| self.values.get(name))
+                    {
+                        ui.group(|ui| {
+                            ui.strong("egui_plot line preview");
+                            ui.add(
+                                egui::ProgressBar::new((value / 4.0).clamp(0.0, 1.0))
+                                    .text(format!("amplitude {value:.2}")),
+                            );
+                        });
+                    } else {
+                        ui.colored_label(Color32::LIGHT_RED, "Missing f32 binding");
+                    }
                 }
                 NodeKind::Checkbox { text, binding } => {
                     if let Some(PreviewValue::Bool(value)) =
@@ -189,5 +251,35 @@ impl PreviewState {
         for child in &node.children {
             self.show_node(ui, child, selected);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn saved_fixture_initializes_and_updates_preview_values() {
+        let mut state = PreviewState::default();
+        let mut project = CitizenProject::default();
+        state.sync(&project);
+        assert_eq!(
+            state.values.get("display_name"),
+            Some(&PreviewValue::Text("Preview Citizen".to_owned()))
+        );
+
+        project.preview.values.insert(
+            "display_name".to_owned(),
+            StateValue::Text("Edited fixture".to_owned()),
+        );
+        state.sync(&project);
+        assert_eq!(
+            state.values.get("display_name"),
+            Some(&PreviewValue::Text("Edited fixture".to_owned()))
+        );
+        assert_eq!(
+            project.state_fields[1].value,
+            StateValue::Text("Citizen".to_owned())
+        );
     }
 }
