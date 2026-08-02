@@ -10,71 +10,39 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  check:
-    name: Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libxkbcommon-dev libwayland-dev
-      - name: Run cargo check
-        run: cargo check
-
-  fmt:
-    name: Format
+  quality:
+    name: Native, WASM, and generated fixture
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt
-      - name: Run cargo fmt
+          components: clippy, rustfmt
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Install native GUI dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-dev libwayland-dev
+      - name: Check formatting
         run: cargo fmt --all -- --check
-
-  clippy:
-    name: Clippy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
-      - uses: Swatinem/rust-cache@v2
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libxkbcommon-dev libwayland-dev
-      - name: Run cargo clippy
-        run: cargo clippy -- -D warnings
-
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libxkbcommon-dev libwayland-dev
-      - name: Run cargo test
+      - name: Check native targets
+        run: cargo check --all-targets
+      - name: Lint native targets
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Run tests
         run: cargo test
-
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libxkbcommon-dev libwayland-dev
-      - name: Run cargo build --release
+      - name: Build release binary
         run: cargo build --release
+      - name: Check builder WASM target
+        run: cargo check --target wasm32-unknown-unknown
+      - name: Materialize all-node generated fixture
+        run: cargo run --example generate_fixture -- "${RUNNER_TEMP}/generated"
+      - name: Check generated formatting
+        run: cargo fmt --manifest-path "${RUNNER_TEMP}/generated/example-citizen/Cargo.toml" --all -- --check
+      - name: Check generated native targets
+        run: cargo check --manifest-path "${RUNNER_TEMP}/generated/example-citizen/Cargo.toml" --all-targets --all-features
+      - name: Lint generated native targets
+        run: cargo clippy --manifest-path "${RUNNER_TEMP}/generated/example-citizen/Cargo.toml" --all-targets --all-features -- -D warnings
+      - name: Check generated WASM preview
+        run: cargo check --manifest-path "${RUNNER_TEMP}/generated/example-citizen/Cargo.toml" --target wasm32-unknown-unknown --features preview --bin example-citizen-preview

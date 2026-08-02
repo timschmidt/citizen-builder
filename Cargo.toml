@@ -1,20 +1,29 @@
 [package]
-name = "egui-rad-builder"
-version = "0.2.2"
+name = "citizen-builder"
+version = "0.3.0"
 edition = "2024"
-description = "Tool for quickly designing egui user interfaces "
+description = "Visual builder for designing egui_mobius Citizen panels"
 authors = ["Timothy Schmidt <timschmidt@gmail.com>"]
 license = "MIT"
-repository = "https://github.com/timschmidt/egui-rad-builder"
+repository = "https://github.com/timschmidt/citizen-builder"
 readme = "README.md"
+rust-version = "1.92"
 
 [dependencies]
-chrono = "0.4.42"
-eframe = "0.33.0"
-egui = { version = "0.33", features = ["serde"] }
-# egui_dock = "0.18"  # Reserved for future docking system
-egui_extras = { version = "0.33.0", features = ["chrono", "syntect"] }
-rfd = "0.15"
+eframe = "=0.35.0"
+egui = { version = "=0.35.0", features = ["serde"] }
+egui_dock = "=0.20.1"
+egui_citizen = { git = "https://github.com/saturn77/egui_mobius", rev = "cc286df73b6cb3a015b3d0c5159aeaf3f41510cc" }
+egui_mobius_reactive = { git = "https://github.com/saturn77/egui_mobius", rev = "cc286df73b6cb3a015b3d0c5159aeaf3f41510cc" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-syntect = { version = "5.2", default-features = false, features = ["default-fancy"] }
+syn = { version = "2", features = ["full", "parsing"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+env_logger = "0.11"
+rfd = "0.15"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+log = "0.4"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = ["Document", "Element", "HtmlCanvasElement", "Window"] }
