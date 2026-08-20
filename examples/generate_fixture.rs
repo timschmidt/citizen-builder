@@ -10,6 +10,7 @@ fn main() {
         .nth(1)
         .map(PathBuf::from)
         .expect("usage: cargo run --example generate_fixture -- <parent-directory>");
+    std::fs::create_dir_all(&parent).expect("failed to create fixture parent directory");
 
     let mut project = CitizenProject::default();
     let root = project.root.id;
