@@ -29,8 +29,9 @@ fn main() {
     project.add_palette_item(Some(column), PaletteItem::Label);
 
     let scroll = project.add_palette_item(Some(root), PaletteItem::Scroll);
-    project.add_palette_item(Some(scroll), PaletteItem::Slider);
-    project.add_palette_item(Some(scroll), PaletteItem::ProgressBar);
+    let scroll_column = project.add_palette_item(Some(scroll), PaletteItem::Column);
+    project.add_palette_item(Some(scroll_column), PaletteItem::Slider);
+    project.add_palette_item(Some(scroll_column), PaletteItem::ProgressBar);
 
     let generated = generate(&project).expect("showcase fixture project is valid");
     let destination = generated
